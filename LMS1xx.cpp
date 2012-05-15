@@ -35,6 +35,7 @@
 LMS1xx::LMS1xx() :
 	connected(false) {
 	debug = false;
+	q_len = 0;
 }
 
 LMS1xx::~LMS1xx() {
@@ -210,7 +211,25 @@ void LMS1xx::getData(scanData& data) {
 	struct timeval tv;
 	int retval, len;
 	len = 0;
+	bool newRead = true;
 
+	if (q_len)
+	{
+		memcpy(buf, queue, q_len);
+		len = q_len;
+		q_len = 0;
+		int end;
+		for (end = len; buf[end] != 0x03 && end >= 0; end--);
+		if (end < len && end > 0)
+		{
+			newRead = false;
+			printf("Collected a part of a next next scan...\n");
+			memcpy(queue, buf+end+1, len-end-1);
+			q_len = len-end-1;
+			len = end+1;
+		}
+	}
+	if (newRead)
 	do {
 		FD_ZERO(&rfds);
 		FD_SET(sockDesc, &rfds);
@@ -220,6 +239,18 @@ void LMS1xx::getData(scanData& data) {
 		retval = select(sockDesc + 1, &rfds, NULL, NULL, &tv);
 		if (retval) {
 			len += read(sockDesc, buf + len, 20000 - len);
+		}
+		if (buf[0] == 0x02)
+		{
+			int end;
+			for (end = len; buf[end] != 0x03 && end >= 0; end--);
+			if (end < len && end > 0)
+			{
+				//printf("Collected a part of a next scan...\n");
+				memcpy(queue, buf+end+1, len-end-1);
+				q_len = len-end-1;
+				len = end+1;
+			}
 		}
 	} while ((buf[0] != 0x02) || (buf[len - 1] != 0x03));
 

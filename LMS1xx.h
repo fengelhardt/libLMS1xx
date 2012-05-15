@@ -298,6 +298,8 @@ public:
 private:
 	bool connected;
 	bool debug;
+	char queue[20000];
+	int q_len;
 
 	int sockDesc;
 };
