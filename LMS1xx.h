@@ -260,7 +260,13 @@ public:
 	* @param cfg structure containing scan configuration.
 	*/
 	void setScanCfg(const scanCfg &cfg);
-
+	
+	/*!
+	* @brief Set laser range sensor IP address.
+	* @param new_ip as returned by inet_pton(AF_INET, ..., &new_ip).
+	*/
+	int setIP(unsigned long new_ip);
+	
 	/*!
 	* @brief Set scan data configuration.
 	* Set format of scan message returned by device.
@@ -287,8 +293,15 @@ public:
 	* Parameters are saved in the EEPROM of the LMS and will also be available after the device is switched off and on again.
 	*
 	*/
-	void saveConfig();
-
+	int saveConfig();
+	
+	/*!
+	* @brief Reboot the device (also saves data permanently).
+	* Parameters are saved in the EEPROM of the LMS and will also be available after the device is switched off and on again.
+	*
+	*/
+	int reboot();
+	
 	/*!
 	* @brief The device is returned to the measurement mode after configuration.
 	*

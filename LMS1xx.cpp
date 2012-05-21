@@ -169,6 +169,29 @@ void LMS1xx::setScanCfg(const scanCfg &cfg) {
 	buf[len - 1] = 0;
 }
 
+int LMS1xx::setIP(unsigned long new_ip) {
+	char buf[100];
+	unsigned char ip[4];
+
+	for (int i = 0; i < 4; i++) {
+		ip[i] = new_ip % 256;
+		new_ip >>= 8;
+	}
+	
+	sprintf(buf, "%c%s %X %X %X %X%c", 0x02, "sWN EIIpAddr", ip[0], ip[1], ip[2], ip[3], 0x03);
+	
+	write(sockDesc, buf, strlen(buf));
+	int len = read(sockDesc, buf, 100);
+
+	char command_type[15], command[30];
+	int n_read = sscanf(buf, "\x02%s %[^\x03]", command_type, command);
+	printf("n_read = %d\ntype = '%s'\ncommand = '%s'\n", n_read, command_type, command);
+	if ((n_read == 2) && (strcmp(command_type, "sWA") == 0) && (strcmp(command, "EIIpAddr") == 0))
+		return 1;
+	
+	return 0;
+}
+
 void LMS1xx::setScanDataCfg(const scanDataCfg &cfg) {
 	char buf[100];
 	sprintf(buf, "%c%s %02X 00 %d %d 0 %02X 00 %d %d 0 %d +%d%c", 0x02,
@@ -399,19 +422,39 @@ void LMS1xx::getData(scanData& data) {
 
 }
 
-void LMS1xx::saveConfig() {
+int LMS1xx::saveConfig() {
 	char buf[100];
 	sprintf(buf, "%c%s%c", 0x02, "sMN mEEwriteall", 0x03);
 
 	write(sockDesc, buf, strlen(buf));
 
 	int len = read(sockDesc, buf, 100);
+	int n_read, status;
+	n_read = sscanf(buf, "\x02sAN mEEwriteall %d\x03", &status);
+	if (n_read == 1 && status == 1)
+		return 1;
+	return 0;
 	//	if (buf[0] != 0x02)
 	//		std::cout << "invalid packet recieved" << std::endl;
 	//	if (debug) {
 	//		buf[len] = 0;
 	//		std::cout << buf << std::endl;
 	//	}
+}
+
+int LMS1xx::reboot() {
+	char buf[100];
+	sprintf(buf, "%c%s%c", 0x02, "sMN mSCreboot", 0x03);
+
+	write(sockDesc, buf, strlen(buf));
+
+	int len = read(sockDesc, buf, 100);
+	char command_type[15], command[30];
+	int n_read = sscanf(buf, "\x02%s %[^\x03]", command_type, command);
+	if ((n_read == 2) && (strcmp(command_type, "sAN") == 0) && (strcmp(command, "mSCreboot") == 0))
+		return 1;
+	
+	return 0;
 }
 
 void LMS1xx::startDevice() {
