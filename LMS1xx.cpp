@@ -29,6 +29,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <time.h>
+#include <cmath>
 
 #include "LMS1xx.h"
 
@@ -119,6 +121,63 @@ status_t LMS1xx::queryStatus() {
 	sscanf((buf + 10), "%d", &ret);
 
 	return (status_t) ret;
+}
+
+double LMS1xx::estimateRoundTripTime(struct tcp_info *tcp_info, double alpha, double threshold) {
+	char cmd[100];
+	char buf[100];
+	double delta, y = 0, y_prev = 0;
+	struct timespec start, end, diff;
+	
+	sprintf(cmd, "%c%s%c", 0x02, "sRN SCdevicestate", 0x03);
+	do
+	{
+		y_prev = y;
+		clock_gettime(CLOCK_MONOTONIC, &start);
+		write(sockDesc, cmd, strlen(cmd));
+		int len = read(sockDesc, buf, 100);
+		clock_gettime(CLOCK_MONOTONIC, &end);
+		diff.tv_sec = end.tv_sec - start.tv_sec;
+		diff.tv_nsec = end.tv_nsec - start.tv_nsec;
+		delta = diff.tv_sec + (double) diff.tv_nsec/1e9;
+		y = (1 - alpha)*y + alpha*delta;
+	} while (fabs(y - y_prev) > threshold);
+	
+	if (tcp_info != NULL)
+	{
+		socklen_t tcp_info_length = sizeof(*tcp_info);
+		getsockopt(sockDesc, SOL_TCP, TCP_INFO, (void *) tcp_info, &tcp_info_length);
+	}
+	
+	return y;
+}
+
+int LMS1xx::setTime(double round_trip_time) {
+	char cmd[100];
+	struct tm *utc_time;
+	struct timespec curr_rtime;
+	double tt = round_trip_time / 2.;
+
+	clock_gettime(CLOCK_REALTIME, &curr_rtime);
+	curr_rtime.tv_nsec += (long) ((tt - (int) tt) * 1e9);
+	if (curr_rtime.tv_nsec >= 1000000000L)
+	{
+		curr_rtime.tv_nsec -= 1000000000L;
+		curr_rtime.tv_sec++;
+	}
+	curr_rtime.tv_sec += (time_t) tt;
+
+	utc_time = gmtime(&curr_rtime.tv_sec);
+	sprintf(cmd, "%c%s +%d +%d +%d +%d +%d +%d +%ld%c", 0x02, "sMN LSPsetdatetime",
+		utc_time->tm_year+1900, utc_time->tm_mon+1, utc_time->tm_mday,
+		utc_time->tm_hour, utc_time->tm_min, utc_time->tm_sec, curr_rtime.tv_nsec/1000, 0x03);
+
+	write(sockDesc, cmd, strlen(cmd));
+	int len = read(sockDesc, cmd, 100);
+	int ret;
+	sscanf(cmd+20 , "%d", &ret);
+
+	return ret;
 }
 
 void LMS1xx::login() {

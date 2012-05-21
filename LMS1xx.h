@@ -26,6 +26,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <netinet/tcp.h>
 
 /*!
 * @class scanCfg
@@ -232,6 +233,26 @@ public:
 	* @returns status of LMS1xx device.
 	*/
 	status_t queryStatus();
+	
+	/*!
+	* @brief Estimate the round trip time in communication with the LMS1xx device.
+	* RTT is estimated using exponentially-weighted moving average filter with smoothing parameter alpha = 0.1,
+	* and a threshold of 1e-7. When the update difference becomes less than threshold, filtering stops.
+	* If one wants tcp_info from getsockopt(), one passes a struct tcp_info pointer.
+	* @param tcp_info struct tcp_info pointer
+	* @param alpha smoothing factor
+	* @param threshold filtering stops when the (absolute) update becomes less than this value
+	* @returns RTT estimate.
+	*/
+	double estimateRoundTripTime(struct tcp_info *tcp_info = NULL, double alpha = 0.1, double threshold = 1e-7);
+	
+	/*!
+	* @brief Sets the LMS1xx clock.
+	* Sets the laser device RTC clock.
+	* @param round_trip_time estimated round trip time
+	* @returns 1 on success, 0 otherwise
+	*/
+	int setTime(double round_trip_time = 0);
 
 	/*!
 	* @brief Log into LMS1xx unit.
