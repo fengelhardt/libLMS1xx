@@ -26,6 +26,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <sys/time.h>
 #include <netinet/tcp.h>
 
 /*!
@@ -104,6 +105,10 @@ typedef struct _scanDataCfg {
 	 */
 	bool deviceName;
 	
+	/*!
+	 * @brief Timestamp.
+	 * Defines whether the scan is to be timestamped.
+	 */
 	bool timestamp;
 
 	/*!
@@ -173,6 +178,12 @@ typedef struct _scanData {
 	 *
 	 */
 	uint16_t rssi2[1082];
+	
+	/*!
+	 * @brief Scan timestamp.
+	 * Used to store the timestamp of the scan.
+	 */
+	struct timeval timestamp;
 } scanData;
 
 typedef enum {
@@ -285,6 +296,7 @@ public:
 	/*!
 	* @brief Set laser range sensor IP address.
 	* @param new_ip as returned by inet_pton(AF_INET, ..., &new_ip).
+	* @returns 1 on success, 0 otherwise
 	*/
 	int setIP(unsigned long new_ip);
 	
@@ -307,7 +319,7 @@ public:
 	*
 	* @param data pointer to scanData buffer structure.
 	*/
-	void getData(scanData& data);
+	int getData(scanData& data);
 
 	/*!
 	* @brief Save data permanently.
@@ -319,7 +331,7 @@ public:
 	/*!
 	* @brief Reboot the device (also saves data permanently).
 	* Parameters are saved in the EEPROM of the LMS and will also be available after the device is switched off and on again.
-	*
+	* @returns 1 on success, 0 otherwise
 	*/
 	int reboot();
 	

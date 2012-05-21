@@ -38,6 +38,7 @@ LMS1xx::LMS1xx() :
 	connected(false) {
 	debug = false;
 	q_len = 0;
+	setenv("TZ", "UTC", 1);
 }
 
 LMS1xx::~LMS1xx() {
@@ -287,7 +288,7 @@ void LMS1xx::scanContinous(int start) {
 	}
 }
 
-void LMS1xx::getData(scanData& data) {
+int LMS1xx::getData(scanData& data) {
 	char buf[20000];
 	fd_set rfds;
 	struct timeval tv;
@@ -478,7 +479,43 @@ void LMS1xx::getData(scanData& data) {
 			}
 		}
 	}
-
+	
+	int flag;
+	tok = strtok(NULL, " "); // Position
+	sscanf(tok, "%d", &flag);
+	if (flag)
+	  for(int i = 0; i < 7; i++) tok = strtok(NULL, " ");
+	tok = strtok(NULL, " "); // Name
+	sscanf(tok, "%d", &flag);
+	if (flag) tok = strtok(NULL, " ");
+	tok = strtok(NULL, " "); // Comment
+	sscanf(tok, "%d", &flag);
+	if (flag) tok = strtok(NULL, " ");
+	tok = strtok(NULL, " "); // Time
+	sscanf(tok, "%d", &flag);
+	struct tm lms_time;
+	lms_time.tm_isdst = -1;
+	if (flag) {
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &lms_time.tm_year);
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &lms_time.tm_mon);
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &lms_time.tm_mday);
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &lms_time.tm_hour);
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &lms_time.tm_min);
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &lms_time.tm_sec);
+	  tok = strtok(NULL, " ");
+	  sscanf(tok, "%X", &data.timestamp.tv_usec);
+	  lms_time.tm_year -= 1900;
+	  lms_time.tm_mon--;
+	  data.timestamp.tv_sec = mktime(&lms_time);
+	}
+	
+  return 0;
 }
 
 int LMS1xx::saveConfig() {
