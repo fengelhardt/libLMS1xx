@@ -185,7 +185,7 @@ int LMS1xx::setIP(unsigned long new_ip) {
 
 	char command_type[15], command[30];
 	int n_read = sscanf(buf, "\x02%s %[^\x03]", command_type, command);
-	printf("n_read = %d\ntype = '%s'\ncommand = '%s'\n", n_read, command_type, command);
+	
 	if ((n_read == 2) && (strcmp(command_type, "sWA") == 0) && (strcmp(command, "EIIpAddr") == 0))
 		return 1;
 	
