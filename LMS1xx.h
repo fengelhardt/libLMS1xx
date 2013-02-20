@@ -26,6 +26,8 @@
 
 #include <string>
 #include <stdint.h>
+#include <sys/time.h>
+#include <netinet/tcp.h>
 
 /*!
 * @class scanCfg
@@ -103,6 +105,10 @@ typedef struct _scanDataCfg {
 	 */
 	bool deviceName;
 	
+	/*!
+	 * @brief Timestamp.
+	 * Defines whether the scan is to be timestamped.
+	 */
 	bool timestamp;
 
 	/*!
@@ -172,6 +178,12 @@ typedef struct _scanData {
 	 *
 	 */
 	uint16_t rssi2[1082];
+	
+	/*!
+	 * @brief Scan timestamp.
+	 * Used to store the timestamp of the scan.
+	 */
+	struct timeval timestamp;
 } scanData;
 
 typedef enum {
@@ -232,6 +244,26 @@ public:
 	* @returns status of LMS1xx device.
 	*/
 	status_t queryStatus();
+	
+	/*!
+	* @brief Estimate the round trip time in communication with the LMS1xx device.
+	* RTT is estimated using exponentially-weighted moving average filter with smoothing parameter alpha = 0.1,
+	* and a threshold of 1e-7. When the update difference becomes less than threshold, filtering stops.
+	* If one wants tcp_info from getsockopt(), one passes a struct tcp_info pointer.
+	* @param tcp_info struct tcp_info pointer
+	* @param alpha smoothing factor
+	* @param threshold filtering stops when the (absolute) update becomes less than this value
+	* @returns RTT estimate.
+	*/
+	double estimateRoundTripTime(struct tcp_info *tcp_info = NULL, double alpha = 0.1, double threshold = 1e-7);
+	
+	/*!
+	* @brief Sets the LMS1xx clock.
+	* Sets the laser device RTC clock.
+	* @param round_trip_time estimated round trip time
+	* @returns 1 on success, 0 otherwise
+	*/
+	int setTime(double round_trip_time = 0);
 
 	/*!
 	* @brief Log into LMS1xx unit.
@@ -260,7 +292,14 @@ public:
 	* @param cfg structure containing scan configuration.
 	*/
 	void setScanCfg(const scanCfg &cfg);
-
+	
+	/*!
+	* @brief Set laser range sensor IP address.
+	* @param new_ip as returned by inet_pton(AF_INET, ..., &new_ip).
+	* @returns 1 on success, 0 otherwise
+	*/
+	int setIP(unsigned long new_ip);
+	
 	/*!
 	* @brief Set scan data configuration.
 	* Set format of scan message returned by device.
@@ -280,15 +319,22 @@ public:
 	*
 	* @param data pointer to scanData buffer structure.
 	*/
-	void getData(scanData& data);
+	int getData(scanData& data);
 
 	/*!
 	* @brief Save data permanently.
 	* Parameters are saved in the EEPROM of the LMS and will also be available after the device is switched off and on again.
 	*
 	*/
-	void saveConfig();
-
+	int saveConfig();
+	
+	/*!
+	* @brief Reboot the device (also saves data permanently).
+	* Parameters are saved in the EEPROM of the LMS and will also be available after the device is switched off and on again.
+	* @returns 1 on success, 0 otherwise
+	*/
+	int reboot();
+	
 	/*!
 	* @brief The device is returned to the measurement mode after configuration.
 	*
@@ -298,6 +344,8 @@ public:
 private:
 	bool connected;
 	bool debug;
+	char queue[20000];
+	int q_len;
 
 	int sockDesc;
 };
